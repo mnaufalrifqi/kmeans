@@ -31,13 +31,16 @@ if uploaded_file is not None:
     correlation_matrix = features.corr()
     sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt='.2f', square=True, cbar_kws={"shrink": .8})
     st.pyplot(plt)
+
+    # Menggunakan 'features' untuk data_features
+    data_features = features
     
     # Menangani missing values
     features = features.dropna()
     
     # Menormalisasi fitur
     scaler = StandardScaler()
-    data_scaled = scaler.fit_transform(features)
+    data_scaled = scaler.fit_transform(data_features)
     
     # Menentukan jumlah cluster optimal menggunakan metode elbow
     wcss = []
@@ -59,10 +62,10 @@ if uploaded_file is not None:
     
     # Membuat model KMeans dengan 4 cluster
     kmeans = KMeans(n_clusters=4, random_state=42)
-    clusters = kmeans.fit_predict(data_scaled)
+    clusters = kmeans.fit_predict(data_features)
     
     # Menghitung Silhouette Score
-    silhouette_avg = silhouette_score(data_scaled, clusters)
+    silhouette_avg = silhouette_score(data_features, clusters)
     st.write(f"Silhouette Score untuk 4 cluster: {silhouette_avg}")
     
     # Menambahkan label cluster ke dataset
@@ -82,7 +85,11 @@ if uploaded_file is not None:
 
     # Membuat DataFrame untuk hasil PCA
     pca_df = pd.DataFrame(data=reduced_features, columns=['PC1', 'PC2'])
-    pca_df['Cluster'] = data['Cluster'] + 1  # Normalisasi cluster agar dimulai dari 1
+    pca_df['Cluster'] = data['Cluster']
+
+    # Mengubah nilai cluster dari 0-3 menjadi 1-4
+    pca_df['Cluster'] = pca_df['Cluster'] + 1
+
 
     # Visualisasi PCA dengan cluster
     st.subheader("K-means Clustering with PCA Reduction")
