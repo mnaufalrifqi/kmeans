@@ -67,15 +67,23 @@ if uploaded_file is not None:
     
     # Menambahkan label cluster ke dataset
     data['Cluster'] = kmeans.labels_
+    # Mendefinisikan daftar fitur yang relevan
+    features_list = ['Price', 'Number Sold', 'Total Review']
     
+    # Membuat diagram untuk nilai rata-rata fitur berdasarkan cluster
+    mean_values = data.groupby('Cluster')[features_list].mean().reset_index()
+    mean_values = mean_values.melt(id_vars='Cluster', var_name='Fitur', value_name='Nilai Rata-rata')
+    st.subheader("Rata-rata Features Tiap Cluster")
+    st.write(mean_values)
+
     # Mengurangi dimensi untuk visualisasi
     pca = PCA(n_components=2)
     reduced_features = pca.fit_transform(data_scaled)
-    
+
     # Membuat DataFrame untuk hasil PCA
     pca_df = pd.DataFrame(data=reduced_features, columns=['PC1', 'PC2'])
     pca_df['Cluster'] = data['Cluster'] + 1  # Normalisasi cluster agar dimulai dari 1
-    
+
     # Visualisasi PCA dengan cluster
     st.subheader("K-means Clustering with PCA Reduction")
     plt.figure(figsize=(10, 6))
