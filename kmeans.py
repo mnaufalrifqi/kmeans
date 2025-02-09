@@ -106,8 +106,6 @@ if uploaded_file is not None:
 
     # Periksa nilai unik setelah normalisasi
     for cluster in sorted(data['Cluster'].unique()):  # Gunakan nilai unik yang sudah dinormalisasi
-    example_categories = data[data['Cluster'] == cluster]['Category'].unique()
-
     # Mengubah nilai cluster dari 2-5 menjadi 1-4
     data['Cluster'] = data['Cluster'] + 1
     
