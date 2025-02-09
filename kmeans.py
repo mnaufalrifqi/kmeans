@@ -1,97 +1,117 @@
 import streamlit as st
 import pandas as pd
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import joblib
-from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
-from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 
-# Title of the app
+# Judul Aplikasi
 st.title("K-Means Clustering Visualization")
 
-# File uploader
-uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
+# Mengunggah file CSV
+uploaded_file = st.file_uploader("Upload dataset CSV", type=["csv"])
 
 if uploaded_file is not None:
+    # Memuat dataset
     data = pd.read_csv(uploaded_file, sep=';')
     
-    st.write("Dataset Information:")
+    # Menampilkan informasi dataset
+    st.subheader("Informasi Dataset")
     st.write(data.info())
-
-# Selecting relevant features
-features = data[['Price', 'Number Sold', 'Total Review']]
-
-# Correlation Heatmap
-st.subheader("Correlation Heatmap")
-fig, ax = plt.subplots(figsize=(10, 6))
-sns.heatmap(features.corr(), annot=True, cmap='coolwarm', fmt='.2f', square=True, cbar_kws={"shrink": .8}, ax=ax)
-st.pyplot(fig)
-
-# Handling missing values
-features = features.dropna()
-
-# Standardizing the data
-scaler = StandardScaler()
-data_scaled = scaler.fit_transform(features)
-
-# Elbow Method
-st.subheader("Elbow Method")
-wcss = []
-range_n_clusters = range(1, 11)
-
-for n_clusters in range_n_clusters:
-    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-    kmeans.fit(data_scaled)
-    wcss.append(kmeans.inertia_)
-
-fig, ax = plt.subplots(figsize=(8, 5))
-ax.plot(range_n_clusters, wcss, marker='o')
-ax.set_title("Elbow Method")
-ax.set_xlabel("Number of Clusters")
-ax.set_ylabel("WCSS (Within-Cluster Sum of Squares)")
-st.pyplot(fig)
-
-# Applying KMeans with 4 clusters
-kmeans = KMeans(n_clusters=4, random_state=42)
-clusters = kmeans.fit_predict(data_scaled)
-
-# Silhouette Score
-silhouette_avg = silhouette_score(data_scaled, clusters)
-st.write(f"Silhouette Score for 4 Clusters: {silhouette_avg}")
-
-# Assign clusters to data
-data['Cluster'] = kmeans.labels_
-
-# PCA Visualization
-st.subheader("PCA Visualization")
-pca = PCA(n_components=2)
-reduced_features = pca.fit_transform(data_scaled)
-pca_df = pd.DataFrame(reduced_features, columns=['PC1', 'PC2'])
-pca_df['Cluster'] = data['Cluster']
-
-fig, ax = plt.subplots(figsize=(10, 6))
-sns.scatterplot(x='PC1', y='PC2', hue='Cluster', data=pca_df, palette='coolwarm', s=100, edgecolor='k', ax=ax)
-ax.set_title("K-means Clustering with PCA Reduction")
-st.pyplot(fig)
-
-# Scatter plots
-st.subheader("Number Sold vs Price")
-fig, ax = plt.subplots(figsize=(10, 6))
-sns.scatterplot(data=data, x='Price', y='Number Sold', hue='Cluster', palette='coolwarm', s=100, edgecolor='k', ax=ax)
-ax.set_title("K-means Clustering: Number Sold vs Price")
-st.pyplot(fig)
-
-st.subheader("Number Sold vs Total Review")
-fig, ax = plt.subplots(figsize=(10, 6))
-sns.scatterplot(data=data, x='Total Review', y='Number Sold', hue='Cluster', palette='coolwarm', s=100, edgecolor='k', ax=ax)
-ax.set_title("K-means Clustering: Number Sold vs Total Review")
-st.pyplot(fig)
-
-st.subheader("Price vs Total Review")
-fig, ax = plt.subplots(figsize=(10, 6))
-sns.scatterplot(data=data, x='Total Review', y='Price', hue='Cluster', palette='coolwarm', s=100, edgecolor='k', ax=ax)
-ax.set_title("K-means Clustering: Price vs Total Review")
-st.pyplot(fig)
+    
+    # Memilih fitur yang relevan untuk clustering
+    features = data[['Price', 'Number Sold', 'Total Review']]
+    
+    # Membuat heatmap korelasi
+    st.subheader("Correlation Heatmap")
+    plt.figure(figsize=(10, 6))
+    correlation_matrix = features.corr()
+    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt='.2f', square=True, cbar_kws={"shrink": .8})
+    st.pyplot(plt)
+    
+    # Menangani missing values
+    features = features.dropna()
+    
+    # Menormalisasi fitur
+    scaler = StandardScaler()
+    data_scaled = scaler.fit_transform(features)
+    
+    # Menentukan jumlah cluster optimal menggunakan metode elbow
+    wcss = []
+    range_n_clusters = range(1, 11)
+    
+    for n_clusters in range_n_clusters:
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+        kmeans.fit(data_scaled)
+        wcss.append(kmeans.inertia_)
+    
+    # Plot hasil elbow method
+    st.subheader("Elbow Method")
+    plt.figure(figsize=(8, 5))
+    plt.plot(range_n_clusters, wcss, marker='o')
+    plt.title('Elbow Method')
+    plt.xlabel('Number of Clusters')
+    plt.ylabel('WCSS (Within-Cluster Sum of Squares)')
+    st.pyplot(plt)
+    
+    # Membuat model KMeans dengan 4 cluster
+    kmeans = KMeans(n_clusters=4, random_state=42)
+    clusters = kmeans.fit_predict(data_scaled)
+    
+    # Menghitung Silhouette Score
+    silhouette_avg = silhouette_score(data_scaled, clusters)
+    st.write(f"Silhouette Score untuk 4 cluster: {silhouette_avg}")
+    
+    # Menambahkan label cluster ke dataset
+    data['Cluster'] = kmeans.labels_
+    
+    # Mengurangi dimensi untuk visualisasi
+    pca = PCA(n_components=2)
+    reduced_features = pca.fit_transform(data_scaled)
+    
+    # Membuat DataFrame untuk hasil PCA
+    pca_df = pd.DataFrame(data=reduced_features, columns=['PC1', 'PC2'])
+    pca_df['Cluster'] = data['Cluster'] + 1  # Normalisasi cluster agar dimulai dari 1
+    
+    # Visualisasi PCA dengan cluster
+    st.subheader("K-means Clustering with PCA Reduction")
+    plt.figure(figsize=(10, 6))
+    sns.scatterplot(x='PC1', y='PC2', hue='Cluster', data=pca_df, palette='coolwarm', s=100, edgecolor='k')
+    plt.xlabel('Main Component 1')
+    plt.ylabel('Main Component 2')
+    plt.legend(title='Cluster')
+    plt.grid(True)
+    st.pyplot(plt)
+    
+    # Scatter plot untuk fitur yang dipilih
+    st.subheader("Scatter Plots for Clustering")
+    
+    # Scatter plot Number Sold vs Price
+    plt.figure(figsize=(10, 6))
+    sns.scatterplot(data=data, x='Price', y='Number Sold', hue='Cluster', palette='coolwarm', s=100, edgecolor='k')
+    plt.title('K-means Clustering: Number Sold vs Price')
+    plt.xlabel('Price')
+    plt.ylabel('Number Sold')
+    plt.legend(title='Cluster')
+    st.pyplot(plt)
+    
+    # Scatter plot Number Sold vs Total Review
+    plt.figure(figsize=(10, 6))
+    sns.scatterplot(data=data, x='Total Review', y='Number Sold', hue='Cluster', palette='coolwarm', s=100, edgecolor='k')
+    plt.title('K-means Clustering: Number Sold vs Total Review')
+    plt.xlabel('Total Review')
+    plt.ylabel('Number Sold')
+    plt.legend(title='Cluster')
+    st.pyplot(plt)
+    
+    # Scatter plot Price vs Total Review
+    plt.figure(figsize=(10, 6))
+    sns.scatterplot(data=data, x='Total Review', y='Price', hue='Cluster', palette='coolwarm', s=100, edgecolor='k')
+    plt.title('K-means Clustering: Price vs Total Review')
+    plt.xlabel('Total Review')
+    plt.ylabel('Price')
+    plt.legend(title='Cluster')
+    st.pyplot(plt)
