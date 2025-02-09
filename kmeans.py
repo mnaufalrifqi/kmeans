@@ -100,6 +100,16 @@ if uploaded_file is not None:
     plt.legend(title='Cluster')
     plt.grid(True)
     st.pyplot(plt)
+
+    # Normalisasi nilai cluster agar dimulai dari 1
+    data['Cluster'] = data['Cluster'] - data['Cluster'].min() + 1
+
+    # Periksa nilai unik setelah normalisasi
+    for cluster in sorted(data['Cluster'].unique()):  # Gunakan nilai unik yang sudah dinormalisasi
+    example_categories = data[data['Cluster'] == cluster]['Category'].unique()
+
+    # Mengubah nilai cluster dari 2-5 menjadi 1-4
+    data['Cluster'] = data['Cluster'] + 1
     
     # Scatter plot untuk fitur yang dipilih
     st.subheader("Scatter Plots for Clustering")
