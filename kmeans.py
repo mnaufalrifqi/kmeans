@@ -12,17 +12,14 @@ from sklearn.metrics import silhouette_score
 # Title of the app
 st.title("K-Means Clustering Visualization")
 
-# Load the dataset from a local file instead of requiring an upload
-file_path = 'dataset.csv'
-try:
-    data = pd.read_csv(file_path, sep=';')
-    st.write("Dataset successfully loaded from local file.")
-except FileNotFoundError:
-    st.error(f"File {file_path} not found. Please check the directory.")
-    st.stop()
+# File uploader
+uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
 
-st.write("Dataset Information:")
-st.write(data.info())
+if uploaded_file is not None:
+    data = pd.read_csv(uploaded_file, sep=';')
+    
+    st.write("Dataset Information:")
+    st.write(data.info())
 
 # Selecting relevant features
 features = data[['Price', 'Number Sold', 'Total Review']]
