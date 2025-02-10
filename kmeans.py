@@ -181,6 +181,29 @@ if uploaded_file is not None:
         st.subheader("Perbandingan Silhouette Score")
         st.write("Menampilkan perbandingan Silhouette Score untuk masing-masing algoritma clustering.")
 
+        # Silhouette untuk K-Means
+        kmeans = KMeans(n_clusters=4, random_state=42)
+        kmeans_labels = kmeans.fit_predict(data_features)
+        silhouette_kmeans = silhouette_score(data_features, kmeans_labels)
+        
+        # Silhouette untuk Hierarchical
+        hac = AgglomerativeClustering(n_clusters=4, linkage='single')
+        hac_labels = hac.fit_predict(data_features)
+        silhouette_hac = silhouette_score(data_features, hac_labels)
+        
+        st.write(f"Silhouette Score for K-Means: {silhouette_kmeans:.3f}")
+        st.write(f"Silhouette Score for Hierarchical Clustering: {silhouette_hac:.3f}")
+        
+        # Bar plot perbandingan
+        plt.figure(figsize=(8, 6))
+        sns.barplot(x=["K-Means", "Hierarchical Clustering"], y=[silhouette_kmeans, silhouette_hac], palette='Set2')
+        plt.title("Perbandingan Silhouette Score")
+        st.pyplot(plt)
+    # --- PERBANDINGAN SILHOUETTE SCORE ---
+    elif view_option == "Perbandingan Silhouette Score":
+        st.subheader("Perbandingan Silhouette Score")
+        st.write("Menampilkan perbandingan Silhouette Score untuk masing-masing algoritma clustering.")
+
        # Data untuk jumlah cluster vs Silhouette Score
         clusters = [2, 3, 4, 5, 6]  # Jumlah cluster yang diuji
         silhouette_kmeans = [0.75, 0.82, 0.89, 0.85, 0.80]  # Silhouette Score untuk K-Means
