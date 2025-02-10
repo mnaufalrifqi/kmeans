@@ -1,135 +1,201 @@
 import streamlit as st
 import pandas as pd
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import joblib
+from sklearn.cluster import KMeans, AgglomerativeClustering
+from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
+from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
 
-# Judul Aplikasi
-st.title("K-Means Clustering Visualization")
+# Konfigurasi tampilan halaman Streamlit
+st.set_page_config(page_title="Clustering Visualization", layout="wide")
 
-# Mengunggah file CSV
-uploaded_file = st.file_uploader("Upload dataset CSV", type=["csv"])
+# Judul aplikasi
+st.title("📊 Visualisasi Clustering: K-Means & Hierarchical Agglomerative Clustering (HAC)")
+
+# Upload file CSV
+uploaded_file = st.file_uploader("📂 Unggah file CSV", type=["csv"])
+
+# Opsi untuk memuat model yang sudah tersimpan
+st.sidebar.subheader("📂 Muat Model Clustering")
+load_model_option = st.sidebar.radio("Pilih model yang ingin dimuat:", ("Tidak Ada", "K-Means", "Hierarchical Clustering"))
+
+if load_model_option == "K-Means":
+    try:
+        kmeans_loaded = joblib.load("model/kmeans_model.pkl")
+        st.success("✅ Model K-Means berhasil dimuat!")
+    except FileNotFoundError:
+        st.error("❌ Model K-Means belum disimpan!")
+
+elif load_model_option == "Hierarchical Clustering":
+    try:
+        hac_loaded = joblib.load("model/hac_model.pkl")
+        linkage_matrix = hac_loaded["linkage_matrix"]
+        scaler = hac_loaded["scaler"]
+        st.success("✅ Model HAC berhasil dimuat!")
+    except FileNotFoundError:
+        st.error("❌ Model HAC belum disimpan!")
 
 if uploaded_file is not None:
-    # Memuat dataset
+    # Membaca dataset
     data = pd.read_csv(uploaded_file, sep=';')
-    
-    # Menampilkan informasi dataset
-    st.subheader("Informasi Dataset")
-    st.write(data.info())
-    
-    # Memilih fitur yang relevan untuk clustering
-    features = data[['Price', 'Number Sold', 'Total Review']]
-    
-    # Membuat heatmap korelasi
-    st.subheader("Correlation Heatmap")
-    plt.figure(figsize=(10, 6))
-    correlation_matrix = features.corr()
-    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt='.2f', square=True, cbar_kws={"shrink": .8})
-    st.pyplot(plt)
 
-    # Menggunakan 'features' untuk data_features
-    data_features = features
-    
-    # Menangani missing values
-    features = features.dropna()
-    
-    # Menormalisasi fitur
-    scaler = StandardScaler()
-    data_scaled = scaler.fit_transform(data_features)
-    
-    # Menentukan jumlah cluster optimal menggunakan metode elbow
-    wcss = []
-    range_n_clusters = range(1, 11)
-    
-    for n_clusters in range_n_clusters:
-        kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-        kmeans.fit(data_scaled)
-        wcss.append(kmeans.inertia_)
-    
-    # Plot hasil elbow method
-    st.subheader("Elbow Method")
-    plt.figure(figsize=(8, 5))
-    plt.plot(range_n_clusters, wcss, marker='o')
-    plt.title('Elbow Method')
-    plt.xlabel('Number of Clusters')
-    plt.ylabel('WCSS (Within-Cluster Sum of Squares)')
-    st.pyplot(plt)
-    
-    # Membuat model KMeans dengan 4 cluster
-    kmeans = KMeans(n_clusters=4, random_state=42)
-    clusters = kmeans.fit_predict(data_features)
-    
-    # Menghitung Silhouette Score
-    silhouette_avg = silhouette_score(data_features, clusters)
-    st.write(f"Silhouette Score untuk 4 cluster: {silhouette_avg}")
-    
-    # Menambahkan label cluster ke dataset
-    data['Cluster'] = kmeans.labels_
-    # Mendefinisikan daftar fitur yang relevan
-    features_list = ['Price', 'Number Sold', 'Total Review']
-    
-    # Membuat diagram untuk nilai rata-rata fitur berdasarkan cluster
-    mean_values = data.groupby('Cluster')[features_list].mean().reset_index()
-    mean_values = mean_values.melt(id_vars='Cluster', var_name='Fitur', value_name='Nilai Rata-rata')
-    st.subheader("Rata-rata Features Tiap Cluster")
-    st.write(mean_values)
+    # Sidebar untuk memilih tampilan
+    st.sidebar.subheader("🔹 Pilih Tampilan")
+    view_option = st.sidebar.radio("Tampilkan:", ("K-Means", "Hierarchical Clustering", "Perbandingan Silhouette Score"))
 
-    # Mengurangi dimensi untuk visualisasi
-    pca = PCA(n_components=2)
-    reduced_features = pca.fit_transform(data_scaled)
+    # --- K-MEANS ---
+    if view_option == "K-Means":
+        # Memilih fitur yang relevan untuk clustering
+        features = data[['Price', 'Number Sold', 'Total Review']]
+        
+        # Membuat heatmap korelasi
+        st.subheader("Correlation Heatmap")
+        plt.figure(figsize=(10, 6))
+        correlation_matrix = features.corr()
+        sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt='.2f', square=True, cbar_kws={"shrink": .8})
+        st.pyplot(plt)
+        st.write("""Heatmap korelasi di atas menunjukkan hasil analisis clustering, harga memiliki korelasi yang sangat lemah terhadap jumlah produk terjual (-0.04) dan jumlah ulasan (-0.06). Sementara itu, terdapat korelasi positif sebesar 0.30 antara jumlah terjual dan jumlah ulasan. Dengan demikian, dalam analisis clustering, fitur jumlah terjual dan jumlah ulasan lebih relevan dibandingkan harga untuk membentuk pola pengelompokan yang lebih bermakna.""")
+        
+        # Menangani missing values
+        features = features.dropna()
+        
+        # Menormalisasi Rata-rata Features Tiap Cluster
+        scaler = StandardScaler()
+        data_scaled = scaler.fit_transform(features)
+        
+        # Menentukan jumlah cluster optimal menggunakan metode elbow
+        wcss = []
+        range_n_clusters = range(1, 11)
+        
+        for n_clusters in range_n_clusters:
+            kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+            kmeans.fit(data_scaled)
+            wcss.append(kmeans.inertia_)
+        
+        # Plot hasil elbow method
+        st.subheader("Elbow Method")
+        plt.figure(figsize=(8, 5))
+        plt.plot(range_n_clusters, wcss, marker='o')
+        plt.title('Elbow Method')
+        plt.xlabel('Number of Clusters')
+        plt.ylabel('WCSS (Within-Cluster Sum of Squares)')
+        st.pyplot(plt)
+        st.write("""Gambar di atas menunjukkan plot Elbow Method, dengan sumbu horizontal untuk jumlah cluster (k) dan sumbu vertikal untuk nilai WCSS. Titik "elbow" terlihat antara k = 4 dan k = 5, sehingga jumlah cluster optimal adalah k = 4, yang memberikan keseimbangan antara kesederhanaan dan efektivitas pengelompokan.""")
+        
+        # Membuat model KMeans dengan 4 cluster
+        kmeans = KMeans(n_clusters=4, random_state=42)
+        clusters = kmeans.fit_predict(features)
+        
+        # Menghitung Silhouette Score
+        silhouette_avg = silhouette_score(features, clusters)
+        st.write(f"Silhouette Score untuk 4 cluster: {silhouette_avg}")
+        
+        # Menambahkan label cluster ke dataset
+        data['Cluster'] = kmeans.labels_
+        
+        # PCA untuk visualisasi
+        pca = PCA(n_components=2)
+        reduced_features = pca.fit_transform(data_scaled)
 
-    # Membuat DataFrame untuk hasil PCA
-    pca_df = pd.DataFrame(data=reduced_features, columns=['PC1', 'PC2'])
-    pca_df['Cluster'] = data['Cluster']
+        # DataFrame hasil PCA
+        pca_df = pd.DataFrame(data=reduced_features, columns=['PC1', 'PC2'])
+        pca_df['Cluster'] = data['Cluster']
 
-    # Mengubah nilai cluster dari 0-3 menjadi 1-4
-    pca_df['Cluster'] = pca_df['Cluster'] + 1
+        # Visualisasi PCA dengan cluster
+        st.subheader("K-means Clustering with PCA Reduction")
+        plt.figure(figsize=(10, 6))
+        sns.scatterplot(x='PC1', y='PC2', hue='Cluster', data=pca_df, palette='coolwarm', s=100, edgecolor='k')
+        plt.xlabel('PC1')
+        plt.ylabel('PC2')
+        plt.legend(title='Cluster')
+        st.pyplot(plt)
+        st.write("""Hasil K-Means Clustering dengan PCA menunjukkan bahwa produk di Tokopedia terbagi dalam empat cluster utama. Cluster 1 (biru tua) mencakup kategori seperti Computers and Laptops, Fashion, Food and Drink, Household, dan Automotive, dengan pola penjualan stabil. Cluster 2 (biru muda) berisi kategori seperti Gaming, Phones and Tablets, dan Books, yang memiliki variasi harga dan penjualan lebih besar.""")
+        
+        # Scatter plot untuk fitur yang dipilih
+        st.subheader("Scatter Plots for Clustering")
 
+        # Scatter plot Number Sold vs Price
+        plt.figure(figsize=(10, 6))
+        sns.scatterplot(data=data, x='Price', y='Number Sold', hue='Cluster', palette='coolwarm', s=100, edgecolor='k')
+        plt.title('K-means Clustering: Number Sold vs Price')
+        st.pyplot(plt)
+        
+    # --- HIERARCHICAL CLUSTERING ---
+    elif view_option == "Hierarchical Clustering":
+        # Memilih fitur yang digunakan untuk clustering
+        data_features = data[['Price', 'Number Sold', 'Total Review']].fillna(data[['Price', 'Number Sold', 'Total Review']].median())
+        
+        # Standardizing the data
+        scaler = StandardScaler()
+        scaled_data = scaler.fit_transform(data_features)
+        
+        # Applying Agglomerative Clustering
+        clustering = AgglomerativeClustering(n_clusters=4, linkage='single')
+        clusters = clustering.fit_predict(data_features)
+        data['Cluster'] = clusters
+        
+        # Correlation Heatmap
+        st.subheader("Correlation Heatmap")
+        fig, ax = plt.subplots(figsize=(8, 6))
+        sns.heatmap(data_features.corr(), annot=True, cmap='coolwarm', ax=ax)
+        st.pyplot(fig)
+        
+        # Elbow Method for HAC
+        st.subheader("Elbow Method for HAC")
+        inertia = []
+        k_range = range(1, 11)
+        for k in k_range:
+            hac = AgglomerativeClustering(n_clusters=k, linkage='single')
+            hac.fit(data_features)
+            linkage_matrix_k = linkage(data_features, method='single')
+            inertia.append(sum(linkage_matrix_k[:, 2][-k:]))
+        
+        fig, ax = plt.subplots(figsize=(8, 5))
+        ax.plot(k_range, inertia, marker='o')
+        ax.set_title("Elbow Method for HAC")
+        ax.set_xlabel("Number of Clusters")
+        ax.set_ylabel("Pseudo-Inertia")
+        st.pyplot(fig)
+        
+        # Silhouette Score
+        silhouette_avg = silhouette_score(data_features, clusters)
+        st.write(f"Silhouette Score for 4 Clusters: {silhouette_avg}")
+        
+        # PCA Visualization
+        st.subheader("PCA Visualization")
+        pca = PCA(n_components=2)
+        pca_components = pca.fit_transform(data_features)
+        pca_df = pd.DataFrame(pca_components, columns=['PCA1', 'PCA2'])
+        pca_df['Cluster'] = clusters + 1
+        
+        fig, ax = plt.subplots(figsize=(8, 6))
+        sns.scatterplot(data=pca_df, x='PCA1', y='PCA2', hue='Cluster', palette="Set2", s=100)
+        st.pyplot(fig)
+        
+    # --- PERBANDINGAN SILHOUETTE SCORE ---
+    elif view_option == "Perbandingan Silhouette Score":
+        st.subheader("Perbandingan Silhouette Score")
+        st.write("Menampilkan perbandingan Silhouette Score untuk masing-masing algoritma clustering.")
 
-    # Visualisasi PCA dengan cluster
-    st.subheader("K-means Clustering with PCA Reduction")
-    plt.figure(figsize=(10, 6))
-    sns.scatterplot(x='PC1', y='PC2', hue='Cluster', data=pca_df, palette='coolwarm', s=100, edgecolor='k')
-    plt.xlabel('Main Component 1')
-    plt.ylabel('Main Component 2')
-    plt.legend(title='Cluster')
-    plt.grid(True)
-    st.pyplot(plt)
-    
-    # Mengubah nilai cluster dari 2-5 menjadi 1-4
-    data['Cluster'] = data['Cluster'] + 1
-    
-    # Scatter plot untuk fitur yang dipilih
-    st.subheader("Scatter Plots for Clustering")
-    
-    # Scatter plot Number Sold vs Price
-    plt.figure(figsize=(10, 6))
-    sns.scatterplot(data=data, x='Price', y='Number Sold', hue='Cluster', palette='coolwarm', s=100, edgecolor='k')
-    plt.title('K-means Clustering: Number Sold vs Price')
-    plt.xlabel('Price')
-    plt.ylabel('Number Sold')
-    plt.legend(title='Cluster')
-    st.pyplot(plt)
-    
-    # Scatter plot Number Sold vs Total Review
-    plt.figure(figsize=(10, 6))
-    sns.scatterplot(data=data, x='Total Review', y='Number Sold', hue='Cluster', palette='coolwarm', s=100, edgecolor='k')
-    plt.title('K-means Clustering: Number Sold vs Total Review')
-    plt.xlabel('Total Review')
-    plt.ylabel('Number Sold')
-    plt.legend(title='Cluster')
-    st.pyplot(plt)
-    
-    # Scatter plot Price vs Total Review
-    plt.figure(figsize=(10, 6))
-    sns.scatterplot(data=data, x='Total Review', y='Price', hue='Cluster', palette='coolwarm', s=100, edgecolor='k')
-    plt.title('K-means Clustering: Price vs Total Review')
-    plt.xlabel('Total Review')
-    plt.ylabel('Price')
-    plt.legend(title='Cluster')
-    st.pyplot(plt)
+        # Silhouette untuk K-Means
+        kmeans = KMeans(n_clusters=4, random_state=42)
+        kmeans_labels = kmeans.fit_predict(data_features)
+        silhouette_kmeans = silhouette_score(data_features, kmeans_labels)
+        
+        # Silhouette untuk Hierarchical
+        hac = AgglomerativeClustering(n_clusters=4, linkage='single')
+        hac_labels = hac.fit_predict(data_features)
+        silhouette_hac = silhouette_score(data_features, hac_labels)
+        
+        st.write(f"Silhouette Score for K-Means: {silhouette_kmeans:.3f}")
+        st.write(f"Silhouette Score for Hierarchical Clustering: {silhouette_hac:.3f}")
+        
+        # Bar plot perbandingan
+        plt.figure(figsize=(8, 6))
+        sns.barplot(x=["K-Means", "Hierarchical Clustering"], y=[silhouette_kmeans, silhouette_hac], palette='Set2')
+        plt.title("Perbandingan Silhouette Score")
+        st.pyplot(plt)
